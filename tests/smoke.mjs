@@ -1,54 +1,77 @@
-// Smoke test: the hand-in program must be deterministic and its
-// dossier well-formed. Runs main.ts twice into two temp directories,
-// diffs the trees, parses dossier.json and checks the screenshots
-// against the gate's size constraints.
+// Smoke test for the Vice Panels render engine.
+// Runs in plain Node: cover.js only touches `document` inside render-time
+// helpers, so the pure layout/LUT/font functions are exercised directly,
+// plus static checks that the app stays offline and self-contained.
 
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import assert from 'node:assert';
 
-const repo = fileURLToPath(new URL('..', import.meta.url));
-const fail = (msg) => { console.error(`SMOKE FAIL: ${msg}`); process.exit(1); };
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const engine = await import(join(root, 'app', 'src', 'cover.js'));
 
-function runOnce() {
-  const dir = mkdtempSync(join(tmpdir(), 'vice-panels-'));
-  execFileSync('node', ['main.ts'], {
-    cwd: repo,
-    env: { ...process.env, MAKEFUN_OUTPUT_DIR: dir },
-    stdio: 'pipe',
-  });
-  return dir;
+const { LAYOUTS, GRADES, layoutPanels, buildGradientLUT, applyGradeLUT, fitTitleFont } = engine;
+
+// Named exports the brief requires.
+for (const name of ['LAYOUTS', 'GRADES', 'renderCover', 'layoutPanels', 'applyGradeLUT',
+  'buildGradientLUT', 'drawPanelPhoto', 'drawTitleBlock', 'drawHeatMeter',
+  'drawBadgeRibbon', 'fitTitleFont']) {
+  assert.ok(engine[name] !== undefined, `missing export ${name}`);
 }
 
-const a = runOnce();
-const b = runOnce();
+assert.equal(LAYOUTS.length, 6, 'six layouts');
+assert.equal(GRADES.length, 5, 'five grades');
 
-execFileSync('diff', ['-r', a, b]); // throws (and fails the test) on any difference
-console.log('double-run diff: identical');
-
-const dossierBytes = readFileSync(join(a, 'dossier.json'));
-if (dossierBytes.length > 1.5 * 1024 * 1024) fail(`dossier.json is ${dossierBytes.length} bytes, over 1.5 MiB`);
-const dossier = JSON.parse(dossierBytes.toString('utf8'));
-if (!dossier || typeof dossier !== 'object') fail('dossier.json did not parse to an object');
-console.log(`dossier.json: parses, ${dossierBytes.length} bytes`);
-
-const shots = readdirSync(join(a, 'screenshots')).filter((n) => /\.(png|jpe?g)$/i.test(n)).sort();
-if (shots.length < 3 || shots.length > 4) fail(`expected 3-4 screenshots, found ${shots.length}`);
-for (const name of shots) {
-  const size = statSync(join(a, 'screenshots', name)).size;
-  if (size > 262144) fail(`${name} is ${size} bytes, over 256 KiB`);
-}
-console.log(`screenshots: ${shots.join(', ')} all within 256 KiB`);
-
-let appFiles = 0;
-(function count(dir) {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    appFiles++;
-    if (e.isDirectory()) count(join(dir, e.name));
+// Every layout fills its canvas sensibly at all three export sizes.
+for (const [W, H] of [[1080, 1080], [1080, 1350], [1920, 1080]]) {
+  for (const layout of LAYOUTS) {
+    const rects = layoutPanels(layout.id, W, H);
+    assert.equal(rects.length, layout.panels, `${layout.id} panel count at ${W}x${H}`);
+    for (const r of rects) {
+      assert.ok(r.w > 0 && r.h > 0, `${layout.id} rect has area`);
+      assert.ok(r.x >= -W * 0.1 && r.y >= -H * 0.1, `${layout.id} rect near canvas`);
+      assert.ok(r.x + r.w <= W + W * 0.1 && r.y + r.h <= H + H * 0.1, `${layout.id} rect inside canvas`);
+    }
   }
-})(join(a, 'app'));
-if (appFiles > 60) fail(`app/ holds ${appFiles} entries, expected a small tree`);
-console.log(`app/ entries: ${appFiles}`);
-console.log('SMOKE OK');
+}
+
+// LUTs are full-size, endpoints track the gradient stops, posterize quantizes.
+for (const grade of GRADES) {
+  const lut = buildGradientLUT(grade);
+  assert.equal(lut.length, 256 * 3, `${grade.id} LUT size`);
+  const data = { data: new Uint8ClampedArray([10, 20, 30, 255, 200, 210, 220, 255]) };
+  applyGradeLUT(data, lut);
+  assert.equal(data.data[3], 255, 'alpha untouched');
+  assert.equal(data.data[7], 255, 'alpha untouched');
+}
+const poster = GRADES.find((g) => g.id === 'ink-poster');
+const pLut = buildGradientLUT(poster);
+const levels = new Set(Array.from(pLut));
+assert.ok(levels.size <= 5 * 3 + 6, 'posterized LUT uses few levels');
+
+// fitTitleFont shrinks until the text fits.
+const fakeCtx = {
+  font: '',
+  measureText(text) {
+    const size = parseInt(this.font, 10) || 16;
+    return { width: text.length * size * 0.6 };
+  },
+};
+const fitted = fitTitleFont(fakeCtx, 'NEON COAST', 300, 120);
+assert.ok(fitted <= 120 && 'NEON COAST'.length * fitted * 0.6 <= 300 + 24, 'title fits');
+
+// The app must stay offline: no external URLs in any app source.
+for (const rel of ['app/index.html', 'app/style.css', 'app/src/cover.js',
+  'app/src/main.js', 'app/src/photos.js', 'app/src/shots.js']) {
+  const text = readFileSync(join(root, rel), 'utf8');
+  assert.ok(!/https?:\/\//.test(text), `${rel} contains an external URL`);
+}
+
+// Fonts and samples the page depends on are bundled.
+for (const rel of ['app/fonts/Anton-Regular.ttf', 'app/fonts/Pacifico-Regular.ttf',
+  'app/fonts/BebasNeue-Regular.ttf', 'app/samples/boulevard.jpg', 'app/samples/pier.jpg']) {
+  assert.ok(existsSync(join(root, rel)), `missing ${rel}`);
+}
+
+console.log('smoke: all checks passed');

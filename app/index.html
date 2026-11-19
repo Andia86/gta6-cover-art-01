@@ -3,92 +3,92 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vice Panels — GTA-style cover studio</title>
+<title>Vice Panels — GTA-Style Cover Studio</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<canvas id="shot-canvas" hidden></canvas>
-<div id="editor">
-  <header>
-    <div>
-      <h1>VICE PANELS <span>— GTA-style cover studio</span></h1>
-      <p class="promise">Drop in your photos, pick a collage, grade it like a sunset — export a cover that looks shipped.</p>
+<header class="topbar">
+  <div class="brand">
+    <h1>Vice <span>Panels</span></h1>
+    <p class="promise">Build a bold, multi-panel GTA-style cover from your own photos — graded, lettered, export-ready.</p>
+  </div>
+</header>
+
+<main class="workspace">
+  <section class="stage-wrap">
+    <div class="stage">
+      <canvas id="preview" width="1080" height="1080"></canvas>
     </div>
-  </header>
-  <main>
-    <section class="stage-wrap">
-      <div class="stage">
-        <canvas id="preview" width="1080" height="1080"></canvas>
-      </div>
-      <p id="selected-label" class="selected-label">Panel 1 selected</p>
-      <label class="zoom-row">Zoom selected photo
-        <input id="zoom" type="range" min="1" max="3" step="0.02" value="1">
-      </label>
+    <p class="hint">Click a panel to select it · drag to reposition its photo · scroll to zoom</p>
+  </section>
+
+  <aside class="controls">
+    <section class="group">
+      <h2>Layout</h2>
+      <div id="layout-buttons" class="btn-grid"></div>
     </section>
-    <aside class="controls">
-      <section>
-        <h2>Layout</h2>
-        <div id="layouts" class="btn-grid"></div>
-      </section>
-      <section>
-        <h2>Photos</h2>
-        <label class="file-btn">Add your photos
-          <input id="file-input" type="file" accept="image/*" multiple hidden>
-        </label>
-        <div class="btn-row">
-          <button data-sample="boulevard">Sample: Boulevard</button>
-          <button data-sample="pier">Sample: Pier</button>
-        </div>
-        <div id="thumbs" class="thumbs"></div>
-        <p class="hint">Select a panel on the cover, then click a thumbnail to place it there.</p>
-      </section>
-      <section>
-        <h2>Grade</h2>
-        <div id="grades" class="btn-grid"></div>
-      </section>
-      <section>
-        <h2>Lettering</h2>
-        <label>Title <input id="title-input" type="text" value="NEON COAST" maxlength="26"></label>
-        <label>Subtitle <input id="subtitle-input" type="text" value="vice city nights" maxlength="40"></label>
-        <label>Tagline <input id="tagline-input" type="text" value="ONE LAST RIDE · 2026" maxlength="48"></label>
-        <label>Title style
-          <select id="style-select">
-            <option value="block">Block — white on black shadow</option>
-            <option value="sunset" selected>Sunset — gradient fill</option>
-            <option value="neon">Neon — pink &amp; cyan glow</option>
-          </select>
-        </label>
-        <div class="heat-row">
-          <span>Heat</span>
-          <button id="heat-minus" aria-label="less heat">−</button>
-          <span id="heat-value" class="heat-value">★★★★★</span>
-          <button id="heat-plus" aria-label="more heat">+</button>
-        </div>
-        <label>Badge <input id="badge-input" type="text" value="LAUNCH WEEK" maxlength="24"></label>
-        <label class="check"><input id="badge-toggle" type="checkbox" checked> Show badge ribbon</label>
-        <label class="check"><input id="grain-toggle" type="checkbox" checked> Film grain</label>
+
+    <section class="group">
+      <h2>Photos</h2>
+      <label class="file-label">
+        Add your photos
+        <input id="file-input" type="file" accept="image/*" multiple>
+      </label>
+      <div class="row">
+        <button id="sample-boulevard" type="button">Sample: Boulevard</button>
+        <button id="sample-pier" type="button">Sample: Pier</button>
+      </div>
+      <div id="thumbs" class="thumbs"></div>
+      <p class="note">Click a thumbnail to assign it to the selected panel.</p>
+    </section>
+
+    <section class="group">
+      <h2>Grade</h2>
+      <div id="grade-buttons" class="btn-stack"></div>
+    </section>
+
+    <section class="group">
+      <h2>Lettering</h2>
+      <label>Title <input id="title-input" type="text" value="NEON COAST" maxlength="30"></label>
+      <label>Subtitle <input id="subtitle-input" type="text" value="vice city nights" maxlength="40"></label>
+      <label>Tagline <input id="tagline-input" type="text" value="ONE LAST RIDE · 2026" maxlength="48"></label>
+      <label>Title style
+        <select id="style-select">
+          <option value="block" selected>Block</option>
+          <option value="sunset">Sunset</option>
+          <option value="neon">Neon</option>
+        </select>
+      </label>
+      <div class="row between">
+        <span>Heat</span>
+        <span class="stepper">
+          <button id="heat-minus" type="button" aria-label="less heat">−</button>
+          <strong id="heat-value">5</strong>
+          <button id="heat-plus" type="button" aria-label="more heat">+</button>
+        </span>
+      </div>
+      <label>Badge <input id="badge-input" type="text" value="LAUNCH WEEK" maxlength="24"></label>
+      <div class="row checks">
+        <label class="check"><input id="badge-toggle" type="checkbox" checked> Badge</label>
+        <label class="check"><input id="grain-toggle" type="checkbox" checked> Grain</label>
         <label class="check"><input id="vignette-toggle" type="checkbox" checked> Vignette</label>
-      </section>
-      <section>
-        <h2>Export</h2>
-        <label>Preview size
-          <select id="size-select">
-            <option value="square" selected>Square 1080 × 1080</option>
-            <option value="portrait">Portrait 1080 × 1350</option>
-            <option value="landscape">Landscape 1920 × 1080</option>
-          </select>
-        </label>
-        <div class="btn-row">
-          <button data-export="square">PNG 1080²</button>
-          <button data-export="portrait">PNG 1080×1350</button>
-          <button data-export="landscape">PNG 1920×1080</button>
-        </div>
-        <button id="export-all" class="primary">Export all three</button>
-      </section>
-    </aside>
-  </main>
-  <footer>Runs fully offline — your photos never leave this machine.</footer>
-</div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2>Export</h2>
+      <div class="btn-stack">
+        <button id="export-square" type="button">Square · 1080 × 1080</button>
+        <button id="export-port" type="button">Portrait · 1080 × 1350</button>
+        <button id="export-land" type="button">Landscape · 1920 × 1080</button>
+        <button id="export-all" type="button" class="primary">Export all three</button>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<footer class="foot">Runs fully offline — your photos never leave this machine.</footer>
+
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
