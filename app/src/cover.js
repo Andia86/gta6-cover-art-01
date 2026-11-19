@@ -272,6 +272,17 @@ export function drawTitleBlock(ctx, state, W, H) {
   if (state.subtitle) {
     const sSize = Math.max(14, Math.round(size * 0.34));
     ctx.font = `${sSize}px Pacifico, cursive`;
+    // A soft dark scrim behind the subtitle keeps the script lettering
+    // legible where it straddles panel borders and bright photo areas.
+    if (!a.plate && !a.band) {
+      const sw = ctx.measureText(state.subtitle).width;
+      const padX = sSize * 0.55, padY = sSize * 0.30;
+      const rx = a.align === 'left' ? baseX - padX : baseX - sw / 2 - padX;
+      ctx.fillStyle = 'rgba(5,5,14,0.52)';
+      ctx.beginPath();
+      ctx.roundRect(rx, y - padY * 0.4, sw + padX * 2, sSize + padY * 1.1, sSize * 0.4);
+      ctx.fill();
+    }
     ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 6;
     ctx.fillStyle = '#ffe9f4';
     ctx.fillText(state.subtitle, baseX, y);
@@ -282,27 +293,40 @@ export function drawTitleBlock(ctx, state, W, H) {
 
   if (state.tagline) {
     ctx.save();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    // The tagline lives in its own backing strip along the bottom edge,
+    // clear of panel frames and anything busy in the photos.
     const tSize = Math.max(12, Math.round(H * 0.026));
+    const stripH = Math.max(30, Math.round(H * 0.052));
+    ctx.fillStyle = 'rgba(5,5,12,0.82)';
+    ctx.fillRect(0, H - stripH, W, stripH);
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.fillRect(0, H - stripH, W, Math.max(1, Math.round(stripH * 0.05)));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `${tSize}px "Bebas Neue", sans-serif`;
     try { ctx.letterSpacing = `${Math.round(tSize * 0.35)}px`; } catch { /* older engines */ }
-    ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 5;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(state.tagline.toUpperCase(), W / 2, H * 0.972);
+    ctx.fillText(state.tagline.toUpperCase(), W / 2, H - stripH / 2 + 1);
     ctx.restore();
   }
 }
 
-// Five-star wanted/heat meter; (x, y) is the top-right corner anchor.
+// Five-star wanted/heat meter; (x, y) anchors the pill's top-right corner.
+// A dark backing pill keeps the stars readable over any photo content.
 export function drawHeatMeter(ctx, x, y, heat, size = 30) {
   ctx.save();
+  const pillW = 5 * size * 1.08 + size * 0.7;
+  const pillH = size * 1.5;
+  ctx.fillStyle = 'rgba(5,5,12,0.58)';
+  ctx.beginPath();
+  ctx.roundRect(x - pillW, y, pillW, pillH, pillH / 2);
+  ctx.fill();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `${size}px sans-serif`;
   for (let i = 0; i < 5; i++) {
     const cx = x - (4 - i) * (size * 1.08) - size / 2;
     ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 5;
     ctx.fillStyle = i < heat ? '#ffc21f' : 'rgba(255,255,255,0.35)';
-    ctx.fillText('★', cx, y + size / 2);
+    ctx.fillText('★', cx, y + size * 0.75);
   }
   ctx.restore();
 }
@@ -332,14 +356,27 @@ export function drawBadgeRibbon(ctx, W, H, text) {
 }
 
 let noiseCanvas = null;
+// Seeded PRNG (mulberry32) so the film grain — and therefore every render
+// of the same state — is deterministic across runs and machines.
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 function getNoise(size = 256) {
   if (noiseCanvas) return noiseCanvas;
   noiseCanvas = document.createElement('canvas');
   noiseCanvas.width = size; noiseCanvas.height = size;
   const nctx = noiseCanvas.getContext('2d');
   const img = nctx.createImageData(size, size);
+  const rand = mulberry32(0x5eed1234);
   for (let i = 0; i < img.data.length; i += 4) {
-    const v = Math.floor(Math.random() * 256);
+    const v = Math.floor(rand() * 256);
     img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v; img.data[i + 3] = 255;
   }
   nctx.putImageData(img, 0, 0);
@@ -438,7 +475,16 @@ export function renderCover(canvas, state) {
 
   drawTitleBlock(ctx, state, W, H);
   if (state.badgeOn) drawBadgeRibbon(ctx, W, H, state.badge);
-  if (state.heat > 0) drawHeatMeter(ctx, W * 0.985, H * 0.018, state.heat, Math.max(18, Math.round(H * 0.034)));
+  if (state.heat > 0) {
+    const hSize = Math.max(18, Math.round(H * 0.034));
+    const stripH = Math.max(30, Math.round(H * 0.052));
+    // Scenes may move the meter to the bottom-right, above the tagline
+    // strip, when the top-right corner of the composition holds a face.
+    const hy = state.heatAnchor === 'bottom-right'
+      ? H - stripH - hSize * 1.5 - H * 0.016
+      : H * 0.018;
+    drawHeatMeter(ctx, W * 0.985, hy, state.heat, hSize);
+  }
 
   if (state.vignette) {
     const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.78);

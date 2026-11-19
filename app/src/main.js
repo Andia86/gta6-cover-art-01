@@ -35,12 +35,27 @@ function ensurePanels() {
   if (state.selectedPanel >= n) state.selectedPanel = 0;
 }
 
+// Each panel starts from its own crop of its photo, so the default cover
+// never repeats the same region twice.
+const DEFAULT_CROPS = [
+  { offsetX: 0, offsetY: 0.35, zoom: 1 },
+  { offsetX: -0.6, offsetY: 0.55, zoom: 1.3 },
+  { offsetX: -0.85, offsetY: -0.55, zoom: 1.5 },
+  { offsetX: -0.25, offsetY: -0.75, zoom: 1.1 },
+  { offsetX: 0.55, offsetY: -0.35, zoom: 1.45 },
+  { offsetX: 0.8, offsetY: 0.7, zoom: 1.5 },
+  { offsetX: -0.5, offsetY: 0.2, zoom: 1.3 },
+  { offsetX: 0.15, offsetY: -0.8, zoom: 1.15 },
+  { offsetX: -0.85, offsetY: 0.75, zoom: 1.5 },
+];
+
 function assignDefaults() {
   ensurePanels();
   const picks = defaultPanelAssignments(store, panelCount());
   state.panels.forEach((p, i) => {
     const entry = picks[i];
     if (entry) { p.img = entry.img; p.photoId = entry.id; }
+    Object.assign(p, DEFAULT_CROPS[i % DEFAULT_CROPS.length]);
   });
 }
 
@@ -205,9 +220,11 @@ function wireControls() {
   $('#sample-boulevard').addEventListener('click', () => assignSample('boulevard'));
   $('#sample-pier').addEventListener('click', () => assignSample('pier'));
 
-  $('#export-square').addEventListener('click', () => { previewSize = { w: 1080, h: 1080 }; exportPNG(1080, 1080); render(); });
-  $('#export-port').addEventListener('click', () => { previewSize = { w: 1080, h: 1350 }; exportPNG(1080, 1350); render(); });
-  $('#export-land').addEventListener('click', () => { previewSize = { w: 1920, h: 1080 }; exportPNG(1920, 1080); render(); });
+  // Exports render offscreen at the requested size; the preview canvas
+  // keeps whatever shape it already has.
+  $('#export-square').addEventListener('click', () => exportPNG(1080, 1080));
+  $('#export-port').addEventListener('click', () => exportPNG(1080, 1350));
+  $('#export-land').addEventListener('click', () => exportPNG(1920, 1080));
   $('#export-all').addEventListener('click', () => {
     exportPNG(1080, 1080);
     setTimeout(() => exportPNG(1080, 1350), 250);
