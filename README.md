@@ -1,4 +1,4 @@
-[![make.fun bounty: gta6-cover-art-01](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01) [![rank](https://make.fun/badge/gta6-cover-art-01/Andia86/gta6-cover-art-01/rank.svg)](https://make.fun/bounty/gta6-cover-art-01) [![reward](https://make.fun/badge/gta6-cover-art-01/Andia86/gta6-cover-art-01/reward.svg)](https://make.fun/bounty/gta6-cover-art-01)
+[![make.fun bounty](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01) [![rank](https://make.fun/badge/gta6-cover-art-01/Andia86/gta6-cover-art-01/rank.svg)](https://make.fun/bounty/gta6-cover-art-01) [![reward](https://make.fun/badge/gta6-cover-art-01/Andia86/gta6-cover-art-01/reward.svg)](https://make.fun/bounty/gta6-cover-art-01)
 
 # Vice Panels — GTA-Style Cover Studio
 
@@ -73,3 +73,7 @@ full-viewport (used for the screenshots in `screenshots/`):
 ```
 node tests/smoke.mjs
 ```
+
+## Entry
+
+Vice Panels was built for the [make.fun gta6-cover-art-01 bounty](https://make.fun/bounty/gta6-cover-art-01). See the bounty page for the brief, ranking and reward details.
